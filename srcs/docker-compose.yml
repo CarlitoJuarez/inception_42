@@ -1,0 +1,137 @@
+services:
+
+  nginx: # SERVICE NAME
+    # user: 0:0 by default as nginx needs to start as root first but then creates its workers using 33:33
+    build: ./nginx
+    image: nginx # IMAGE NAME
+    container_name: nginx # CONTAINER NAME
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress:/var/www/html
+      - ./static:/var/www/static
+    depends_on:
+      - wordpress
+    networks:
+      - inception
+    restart: always
+
+  wordpress:
+    build:
+      context: ./wordpress
+      args:
+        UID: 33
+        GID: 33
+    image: wordpress
+    container_name: wordpress
+    env_file:
+      - .env
+    environment:
+      WORDPRESS_DB_NAME: ${MARIADB_DATABASE}
+      WORDPRESS_DB_USER: ${MARIADB_USER}
+    secrets:
+      - mariadb_password
+      - wordpress_admin_password
+      - wp_user_password
+    volumes:
+      - wordpress:/var/www/html
+    depends_on:
+      - mariadb
+    networks:
+      - inception
+    restart: always
+
+  mariadb:
+    build: ./mariadb
+    image: mariadb
+    container_name: mariadb
+    secrets:
+      - mariadb_root_password
+      - mariadb_password
+    env_file:
+      - .env
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - inception
+    restart: always
+
+  redis:
+    build: ./redis
+    image: redis
+    container_name: redis
+    networks:
+      - inception
+    restart: always
+
+  ftp:
+    # user: 0:0 by default as ftp needs to start as root first for [ bind, chpasswd, chown, PAM ]
+    build:
+      context: ./ftp
+      # still run ftp service as 33:33 not root
+      args:
+        UID: 33
+        GID: 33
+    image: ftp
+    container_name: ftp
+    ports:
+      - "${FTP_PORT}:21"
+      - "${FTP_PASV_PORT_RANGE}:21100-21110"
+    secrets:
+      - mariadb_password
+    environment:
+      FTP_USER: ${MARIADB_USER}
+    volumes:
+      - wordpress:/var/www/html
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    restart: always
+
+
+  adminer:
+    build: ./adminer
+    image: adminer
+    container_name: adminer
+    ports:
+      - "${ADMINER_BIND_IP}:${ADMINER_PORT}:8080"
+    env_file:
+      - .env
+    networks:
+      - inception
+    depends_on:
+      - mariadb
+    restart: always
+
+
+volumes:
+  wordpress:
+    name: wordpress
+    driver: local # enables local storage through docker's built in local driver
+    driver_opts:
+      type: none # don't use a separate filesystem
+      o: bind # we use bind as we want to use a different location for the volumes
+      device: /home/${LOGIN}/data/wordpress
+  db_data:
+    name: db_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${LOGIN}/data/mariadb
+
+
+networks:
+  inception:
+
+secrets:
+  mariadb_password:
+    file: ../secrets/mariadb_password.txt
+  mariadb_root_password:
+    file: ../secrets/mariadb_root_password.txt
+  wordpress_admin_password:
+    file: ../secrets/wordpress_admin_password.txt
+  wp_user_password:
+    file: ../secrets/wp_user_password.txt
+

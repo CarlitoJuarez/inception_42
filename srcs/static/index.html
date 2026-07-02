@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Carlito Juarez | Software Engineering Portfolio</title>
+      <link rel="stylesheet" href="style.css" />
+    </head>
+  <body>
+    <header class="site-header" id="top">
+        <nav class="nav">
+            <a href="#top" class="logo">CJ</a>
+              <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">☰</button>
+              <div class="nav-links" id="navLinks">
+                <a href="#profile">Profile</a>
+                  <a href="#skills">Skills</a>
+                  <a href="#projects">Projects</a>
+                  <a href="#education">Education</a>
+                  <a href="#experience">Experience</a>
+                  <a href="#contact">Contact</a>
+                </div>
+            </nav>
+
+          <section class="hero reveal">
+            <div class="hero-text">
+                <p class="eyebrow">Software Engineering Student · Full-Stack Developer · Business Background</p>
+                  <h1>Carlito Juarez</h1>
+                  <p class="hero-copy">
+                      Technical-minded IT student with a strong foundation in software engineering, business,
+                      marketing, and more than 10 years of international hospitality experience.
+                    </p>
+                  <div class="hero-actions">
+                      <a class="btn primary" href="#projects">View Projects</a>
+                      <a class="btn secondary" href="mailto:carlito.b.juarez@hotmail.com">Contact Me</a>
+                    </div>
+                </div>
+
+              <div class="hero-card">
+                  <div class="avatar">CJ</div>
+                  <h2>Open to technical roles</h2>
+                  <p>Focused on backend systems, web development, infrastructure, security, and practical business impact.</p>
+                  <div class="quick-stats">
+                      <span><strong>42</strong> Vienna</span>
+                      <span><strong>C1</strong> English</span>
+                      <span><strong>10+</strong> yrs hospitality</span>
+                    </div>
+                </div>
+            </section>
+        </header>
+
+      <main>
+        <section class="section reveal" id="profile">
+            <div class="section-heading">
+                <p class="eyebrow">Profile</p>
+                  <h2>Technical profile with business context</h2>
+                </div>
+              <p class="wide-text">
+                  I combine software engineering training with a background in international business, marketing,
+                  and hospitality operations. My focus is on building reliable technical systems while understanding
+                  the users, processes, and business requirements behind them.
+                </p>
+            </section>
+
+          <section class="section reveal" id="skills">
+              <div class="section-heading">
+                  <p class="eyebrow">Skills</p>
+                  <h2>Technical stack & languages</h2>
+                </div>
+              <div class="filter-bar" role="group" aria-label="Skill filters">
+                  <button class="filter active" data-filter="all">All</button>
+                  <button class="filter" data-filter="programming">Programming</button>
+                  <button class="filter" data-filter="web">Web</button>
+                  <button class="filter" data-filter="tools">Tools</button>
+                  <button class="filter" data-filter="languages">Languages</button>
+                </div>
+              <div class="skills-grid" id="skillsGrid">
+                  <span class="skill" data-category="programming">C</span>
+                  <span class="skill" data-category="programming">C++</span>
+                  <span class="skill" data-category="programming">Python</span>
+                  <span class="skill" data-category="web">HTML/CSS</span>
+                  <span class="skill" data-category="web">JavaScript</span>
+                  <span class="skill" data-category="web">Django</span>
+                  <span class="skill" data-category="tools">Bash</span>
+                  <span class="skill" data-category="tools">SQLite</span>
+                  <span class="skill" data-category="tools">MS Office</span>
+                  <span class="skill" data-category="languages">German · Native</span>
+                  <span class="skill" data-category="languages">English · C1</span>
+                  <span class="skill" data-category="languages">Dutch · B2</span>
+                </div>
+            </section>
+
+          <section class="section reveal" id="projects">
+              <div class="section-heading">
+                  <p class="eyebrow">Featured Project</p>
+                  <h2>Social media platform · Full-stack</h2>
+                </div>
+              <article class="project-card">
+                <div>
+                    <h3>Mech & Keys</h3>
+                      <p>
+                        A deployed full-stack social media platform using Django, vanilla JavaScript, Vue.js,
+                        PostgreSQL, ASGI, Gunicorn, Nginx, domain configuration, and business email integration.
+                      </p>
+                      <ul class="check-list">
+                        <li>CSRF protection, rate limiting, input validation and sanitization</li>
+                          <li>Content moderation using OpenAI and Google APIs</li>
+                          <li>Email verification based authorization flow</li>
+                        </ul>
+                    </div>
+                  <div class="project-links">
+                      <a class="btn primary" href="https://www.mechnkeys.com" target="_blank" rel="noreferrer">Live Site</a>
+                      <a class="btn secondary" href="https://github.com/CarlitoJuarez/mech_nKeys_demo.git" target="_blank" rel="noreferrer">Demo Repo</a>
+                    </div>
+                </article>
+            </section>
+
+          <section class="section split reveal" id="education">
+              <div class="section-heading">
+                  <p class="eyebrow">Education</p>
+                  <h2>Formal education</h2>
+                </div>
+              <div class="timeline">
+                  <button class="timeline-item active" data-detail="42 Vienna · Project-based software engineering school with emphasis on C, networks, algorithms, graphics, C++, databases, server-side and secure programming.">
+                    <span>2024 — Today</span><strong>Software Engineering</strong><em>42 Vienna</em>
+                    </button>
+                  <button class="timeline-item" data-detail="International Business MA focused on marketing and strategic management in a practical business context.">
+                      <span>2021 — 2023</span><strong>International Business MA</strong><em>FH Kufstein Tirol</em>
+                    </button>
+                  <button class="timeline-item" data-detail="Tourism economics BA with hotel management focus, dual-study structure, and hands-on operational training.">
+                      <span>2017 — 2021</span><strong>Tourismuswirtschaft BA</strong><em>IU Munich</em>
+                    </button>
+                </div>
+              <aside class="detail-panel" id="educationDetail">
+                42 Vienna · Project-based software engineering school with emphasis on C, networks, algorithms, graphics, C++, databases, server-side and secure programming.
+              </aside>
+            </section>
+
+          <section class="section reveal" id="experience">
+              <div class="section-heading">
+                  <p class="eyebrow">Experience</p>
+                  <h2>Hospitality, operations & customer-facing work</h2>
+                </div>
+              <div class="cards">
+                  <article class="card"><span>2024 — 2025</span><h3>Service Staff</h3><p>L’Osteria Wien Wirtschaftsuniversität</p></article>
+                  <article class="card"><span>2022 — 2023</span><h3>Service Staff</h3><p>Hans im Glück Kufstein</p></article>
+                  <article class="card"><span>2021</span><h3>Store Employee / Manager</h3><p>Rootine Wellness Club München</p></article>
+                  <article class="card"><span>2017 — 2021</span><h3>Hotel Management Trainee</h3><p>Leonardo Royal Hotel München · Sales, Front Office, Reservations and operations.</p></article>
+                </div>
+            </section>
+
+          <section class="section contact reveal" id="contact">
+              <div>
+                  <p class="eyebrow">Contact</p>
+                  <h2>Let’s build something practical.</h2>
+                  <p>Based in Vienna, Austria. Available for technical opportunities and project work.</p>
+                </div>
+              <div class="contact-box">
+                  <a href="mailto:carlito.b.juarez@hotmail.com">carlito.b.juarez@hotmail.com</a>
+                  <a href="tel:+436603783559">+43 660 3783559</a>
+                  <span>Vienna, Austria</span>
+                </div>
+            </section>
+        </main>
+
+      <button class="to-top" id="toTop" aria-label="Back to top">↑</button>
+      <script src="script.js"></script>
+    </body>
+  </html>
+</script></p></h3></span></article></aside></em></strong></span></button></h2></a></li></ul></p></h3></div></article></span></button></h2></p></div></section></main></strong></span></h2></a></h1></p></div></section></a></div></button></a></nav></header></body></title></head></html>
