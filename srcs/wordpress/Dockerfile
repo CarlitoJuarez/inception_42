@@ -3,6 +3,8 @@ FROM alpine:3.21
 # use this dir as default for processes / services which need home dir
 ENV HOME=/tmp
 
+ENV WP_CLI_CACHE_DIR=/tmp/wp-cli-cache
+
 # --no-cache
 #   --> combines update + add command
 #   --> fetch from internet --> do not use cached
@@ -10,7 +12,7 @@ ENV HOME=/tmp
 # - php83-fpm
 #   --> FastCGI Package Manager
 RUN apk add --no-cache su-exec \
-  curl tar bash mysql-client ca-certificates \
+  curl tar mysql-client ca-certificates \
   php83 php83-fpm php83-cli php83-mysqli php83-phar \
   php83-mbstring php83-iconv php83-curl php83-json \
   php83-dom php83-xml php83-openssl php83-zip php83-gd
@@ -31,6 +33,7 @@ WORKDIR /var/www/html
 
 
 COPY www.conf /etc/php83/php-fpm.d/www.conf
+COPY php.ini /etc/php83/conf.d/99-wordpress.ini
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

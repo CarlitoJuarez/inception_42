@@ -78,9 +78,9 @@ services:
       - "${FTP_PORT}:21"
       - "${FTP_PASV_PORT_RANGE}:21100-21110"
     secrets:
-      - mariadb_password
+      - ftp_password
     environment:
-      FTP_USER: ${MARIADB_USER}
+      FTP_USER: ${FTP_USER}
     volumes:
       - wordpress:/var/www/html
     networks:
@@ -134,4 +134,6 @@ secrets:
     file: ../secrets/wordpress_admin_password.txt
   wp_user_password:
     file: ../secrets/wp_user_password.txt
+  ftp_password:
+    file: ../secrets/ftp_password.txt
 

@@ -5,14 +5,28 @@ WORDPRESS_DB_PASSWORD="$(cat /run/secrets/mariadb_password)"
 WORDPRESS_ADMIN_PASSWORD="$(cat /run/secrets/wordpress_admin_password)"
 WP_USER_PASSWORD="$(cat /run/secrets/wp_user_password)"
 
+mkdir -p "$WP_CLI_CACHE_DIR"
+chown 33:33 "$WP_CLI_CACHE_DIR"
+chmod 755 "$WP_CLI_CACHE_DIR"
+
 cd /var/www/html
 
 # Make sure WordPress volume is writable by www-data
 chown -R 33:33 /var/www/html
 
 # wait for MariaDB
-until nc -z "$WORDPRESS_DB_HOST" 3306; do
-  echo "Waiting for MariaDB..."
+attempt=0
+max_attempts=30
+
+until nc -z -w 1 "$WORDPRESS_DB_HOST" 3306; do
+  attempt=$((attempt + 1))
+
+  if [ "$attempt" -ge "$max_attempts" ]; then
+    echo "MariaDB was not reachable after $max_attempts attempts." >&2
+    exit 1
+  fi
+
+  echo "Waiting for MariaDB... ($attempt/$max_attempts)"
   sleep 2
 done
 

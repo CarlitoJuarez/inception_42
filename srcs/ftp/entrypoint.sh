@@ -2,7 +2,7 @@
 
 # on error exit
 set -e
-FTP_PASS="$(cat /run/secrets/mariadb_password)"
+FTP_PASS="$(cat /run/secrets/ftp_password)"
 
 # required env vars
 : "${FTP_USER:?FTP_USER is not set}"
