@@ -1,12 +1,12 @@
 services:
 
   nginx: # SERVICE NAME
-    # user: 0:0 by default as nginx needs to start as root first but then creates its workers using 33:33
+    # user: 0:0 by default as nginx needs to start as root first but then creates its workers as nginx user
     build: ./nginx
     image: nginx # IMAGE NAME
     container_name: nginx # CONTAINER NAME
     ports:
-      - "443:443"
+      - "${NGINX_BIND_ADDR}:443:443"
     volumes:
       - wordpress:/var/www/html
       - ./static:/var/www/static
@@ -19,9 +19,6 @@ services:
   wordpress:
     build:
       context: ./wordpress
-      args:
-        UID: 33
-        GID: 33
     image: wordpress
     container_name: wordpress
     env_file:
@@ -68,15 +65,14 @@ services:
     # user: 0:0 by default as ftp needs to start as root first for [ bind, chpasswd, chown, PAM ]
     build:
       context: ./ftp
-      # still run ftp service as 33:33 not root
+      # still run ftp service as root but client should run as www-data / match WP ( Alpine 82 )
       args:
-        UID: 33
-        GID: 33
+        FTP_USER: ${FTP_USER}
     image: ftp
     container_name: ftp
     ports:
-      - "${FTP_PORT}:21"
-      - "${FTP_PASV_PORT_RANGE}:21100-21110"
+      - "${FTP_BIND_ADDR}:${FTP_PORT}:21"
+      - "${FTP_BIND_ADDR}:${FTP_PASV_PORT_RANGE}:21100-21110"
     secrets:
       - ftp_password
     environment:
@@ -127,13 +123,13 @@ networks:
 
 secrets:
   mariadb_password:
-    file: ../secrets/mariadb_password.txt
+    file: ./secrets/mariadb_password.txt
   mariadb_root_password:
-    file: ../secrets/mariadb_root_password.txt
+    file: ./secrets/mariadb_root_password.txt
   wordpress_admin_password:
-    file: ../secrets/wordpress_admin_password.txt
+    file: ./secrets/wordpress_admin_password.txt
   wp_user_password:
-    file: ../secrets/wp_user_password.txt
+    file: ./secrets/wp_user_password.txt
   ftp_password:
-    file: ../secrets/ftp_password.txt
+    file: ./secrets/ftp_password.txt
 

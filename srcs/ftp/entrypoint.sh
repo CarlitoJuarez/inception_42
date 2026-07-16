@@ -18,7 +18,7 @@ mkdir -p "$WP_PATH"
 # default as /var/run/vsftpd/empty which:
 #   - must exist
 #   - must be empty
-#   - not be writable by FTP user aka 33
+#   - not be writable by FTP user aka www-data
 
 mkdir -p /var/run/vsftpd/empty
 
@@ -29,8 +29,10 @@ chmod 555 /var/run/vsftpd/empty
 echo "$FTP_USER:$FTP_PASS" | chpasswd
 
 # recursively set FTP_USER as owner for all files / dir inside
-# also the 33 cannot jail out
-chown -R "$FTP_USER":"wpgroup" "$WP_PATH"
-chmod -R 775 "$WP_PATH"
+# also the www-data cannot jail out
+chown -R "$FTP_USER:www-data" "$WP_PATH"
+
+find "$WP_PATH" -type d -exec chmod 775 {} +
+find "$WP_PATH" -type f -exec chmod 664 {} +
 
 exec vsftpd /etc/vsftpd/vsftpd.conf

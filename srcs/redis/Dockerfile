@@ -1,6 +1,5 @@
-FROM debian:bookworm
+FROM alpine:3.23.5
 
-RUN apt update && apt install -y redis-server
+RUN apk add --no-cache redis
 
-CMD ["redis-server", "--protected-mode", "no"]
-
+CMD ["redis-server", "--protected-mode", "no", "--bind", "0.0.0.0"]

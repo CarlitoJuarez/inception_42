@@ -1,4 +1,5 @@
-FROM alpine:3.21
+FROM alpine:3.23.5
+
 
 # use this dir as default for processes / services which need home dir
 ENV HOME=/tmp
@@ -17,9 +18,23 @@ RUN apk add --no-cache su-exec \
   php83-mbstring php83-iconv php83-curl php83-json \
   php83-dom php83-xml php83-openssl php83-zip php83-gd
 
+# Explicit WordPress/PHP-FPM runtime identity.
+# UID/GID 82 is shared numerically with the FTP user.
+RUN adduser \
+  -S \
+  -D \
+  -H \
+  -u 82 \
+  -G www-data \
+  -s /sbin/nologin \
+  www-data
+
+
+RUN ln -sf /usr/bin/php83 /usr/bin/php
+
 RUN mkdir -p /var/log/php83 \
   && touch /var/log/php83/error.log \
-  && chown -R 33:33 /var/log/php83
+  && chown -R www-data:www-data /var/log/php83
 
 ### NOTE: PROBABLY NOT NEEDED ?! 
 # RUN update-ca-certificates

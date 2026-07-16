@@ -1,11 +1,11 @@
-FROM alpine:3.20
+FROM alpine:3.23.5
 
 RUN apk add --no-cache vsftpd
 
 # RECEIVE THE ARGS
 
-ARG UID=33
-ARG GID=33
+ARG UID=82
+ARG FTP_USER
 
 ENV HOME=/tmp
 
@@ -15,8 +15,11 @@ ENV HOME=/tmp
 #       as for bind mounts the host filesystem becomes the source of truth
 #       for named mounts UID does not matter as UID = 33 --> matches with www-data which align with other containers
 
-RUN addgroup -g $GID wpgroup && \
-  adduser -u $UID -D -G wpgroup wpuser
+RUN adduser \
+  -u "$UID" \
+  -D \
+  -G www-data \
+  "$FTP_USER"
 
 
 # CREATES SYMLINK AT /proc/1/fd/1 which is STDOUT

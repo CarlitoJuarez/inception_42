@@ -12,7 +12,6 @@ DB_DATA     := $(DATA_DIR)/mariadb
 
 COMPOSE     := docker compose -f $(COMPOSE_YML) --env-file $(ENV_FILE)
 
-.PHONY: all up build down stop start restart logs ps clean fclean re dirs
 
 all: up
 
@@ -49,7 +48,11 @@ clean:
 
 fclean:
 	$(COMPOSE) down -v --rmi all		--remove-orphans
-	rm -rf $(WP_DATA)
-	rm -rf $(DB_DATA)
+	sudo rm -rf $(WP_DATA)
+	sudo rm -rf $(DB_DATA)
 
 re: fclean all
+
+
+.PHONY: all up build down stop start restart logs ps clean fclean re dirs
+

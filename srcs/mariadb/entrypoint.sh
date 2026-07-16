@@ -20,25 +20,26 @@ if [ ! -d "$DATADIR/mysql" ]; then
     --datadir="$DATADIR" \
     --auth-root-authentication-method=normal
 
-  su-exec mysql mariadbd \
-    --bootstrap \
-    --datadir="$DATADIR" \
-    --skip-networking <<SQL
+  cat >/run/mysqld/init.sql <<SQL
 CREATE DATABASE IF NOT EXISTS \`${MARIADB_DATABASE}\`
-    CHARACTER SET utf8mb4
+  CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
-CREATE USER IF NOT EXISTS '${MARIADB_USER}'@'%'
-    IDENTIFIED BY '${MARIADB_PASSWORD}';
+  CREATE USER IF NOT EXISTS '${MARIADB_USER}'@'%'
+  IDENTIFIED BY '${MARIADB_PASSWORD}';
 
 GRANT ALL PRIVILEGES ON \`${MARIADB_DATABASE}\`.*
-    TO '${MARIADB_USER}'@'%';
+  TO '${MARIADB_USER}'@'%';
 
 ALTER USER 'root'@'localhost'
-    IDENTIFIED BY '${MARIADB_ROOT_PASSWORD}';
+  IDENTIFIED BY '${MARIADB_ROOT_PASSWORD}';
 
 FLUSH PRIVILEGES;
 SQL
+
+  INIT_FILE="--init-file=/run/mysqld/init.sql"
+else
+  INIT_FILE=""
 fi
 
 exec su-exec mysql mariadbd \
@@ -46,4 +47,5 @@ exec su-exec mysql mariadbd \
   --bind-address=0.0.0.0 \
   --socket=/run/mysqld/mysqld.sock \
   --port=3306 \
-  --skip-networking=0
+  --skip-networking=0 \
+  $INIT_FILE

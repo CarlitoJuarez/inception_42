@@ -1,7 +1,5 @@
-FROM alpine:3.20
+FROM alpine:3.23.5
 
-ARG UID=33
-ARG GID=33
 
 RUN apk add --no-cache nginx openssl
 
