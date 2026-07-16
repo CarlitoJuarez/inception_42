@@ -34,24 +34,26 @@ The domain must point to the local machine or VM IP address, usually through `/e
 ## Project Structure
 
 ```txt
+
 .
 ├── Makefile
 ├── README.md
+└── srcs/
+├── .env
+├── docker-compose.yml
 ├── secrets/
+│   ├── ftp_password.txt
 │   ├── mariadb_password.txt
 │   ├── mariadb_root_password.txt
 │   ├── wordpress_admin_password.txt
 │   └── wp_user_password.txt
-└── srcs/
-    ├── .env
-    ├── docker-compose.yml
-    ├── adminer/
-    ├── ftp/
-    ├── mariadb/
-    ├── nginx/
-    ├── redis/
-    ├── static/
-    └── wordpress/
+├── adminer/
+├── ftp/
+├── mariadb/
+├── nginx/
+├── redis/
+├── static/
+└── wordpress/
 ```
 
 All Docker-related configuration is stored inside `srcs/`.
@@ -89,6 +91,8 @@ Example:
 ```env
 LOGIN=cjuarez
 
+NGINX_BIND_ADDR=0.0.0.0
+
 MARIADB_DATABASE=wordpress
 MARIADB_USER=wpuser
 
@@ -100,6 +104,8 @@ WORDPRESS_ADMIN_EMAIL=owner@example.com
 WORDPRESS_USER=editor
 WORDPRESS_USER_EMAIL=editor@example.com
 
+FTP_BIND_ADDR=127.0.0.1
+FTP_USER=ftpuser
 FTP_PORT=21
 FTP_PASV_PORT_RANGE=21100-21110
 
@@ -120,6 +126,8 @@ secrets/mariadb_password.txt
 secrets/mariadb_root_password.txt
 secrets/wordpress_admin_password.txt
 secrets/wp_user_password.txt
+secrets/wp_user_password.txt
+secrets/ftp_password.txt
 ```
 
 Each file should contain only the secret value itself.

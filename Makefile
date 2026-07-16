@@ -10,7 +10,7 @@ DATA_DIR    := /home/$(LOGIN)/data
 WP_DATA     := $(DATA_DIR)/wordpress
 DB_DATA     := $(DATA_DIR)/mariadb
 
-COMPOSE     := docker compose -f $(COMPOSE_YML) --env-file $(ENV_FILE)
+COMPOSE     := docker compose -p $(NAME) -f $(COMPOSE_YML) --env-file $(ENV_FILE)
 
 
 all: up
