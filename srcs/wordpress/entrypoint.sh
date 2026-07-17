@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 
 WORDPRESS_DB_PASSWORD="$(cat /run/secrets/mariadb_password)"
 WORDPRESS_ADMIN_PASSWORD="$(cat /run/secrets/wordpress_admin_password)"

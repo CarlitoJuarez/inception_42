@@ -104,6 +104,10 @@ WORDPRESS_ADMIN_EMAIL=owner@example.com
 WORDPRESS_USER=editor
 WORDPRESS_USER_EMAIL=editor@example.com
 
+WP_USER=additional_user
+WP_USER=additional_user@example.com
+WP_USER_ROLE=author
+
 FTP_BIND_ADDR=127.0.0.1
 FTP_USER=ftpuser
 FTP_PORT=21
@@ -125,7 +129,6 @@ Required files:
 secrets/mariadb_password.txt
 secrets/mariadb_root_password.txt
 secrets/wordpress_admin_password.txt
-secrets/wp_user_password.txt
 secrets/wp_user_password.txt
 secrets/ftp_password.txt
 ```

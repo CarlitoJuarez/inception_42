@@ -3,8 +3,11 @@ services:
   nginx: # SERVICE NAME
     # user: 0:0 by default as nginx needs to start as root first but then creates its workers as nginx user
     build: ./nginx
-    image: nginx # IMAGE NAME
+    image: nginx:inception # IMAGE NAME
+    pull_policy: build
     container_name: nginx # CONTAINER NAME
+    environment:
+      LOGIN: ${LOGIN}
     ports:
       - "${NGINX_BIND_ADDR}:443:443"
     volumes:
@@ -19,7 +22,7 @@ services:
   wordpress:
     build:
       context: ./wordpress
-    image: wordpress
+    image: wordpress:inception
     container_name: wordpress
     env_file:
       - .env
@@ -40,7 +43,7 @@ services:
 
   mariadb:
     build: ./mariadb
-    image: mariadb
+    image: mariadb:inception
     container_name: mariadb
     secrets:
       - mariadb_root_password
@@ -55,7 +58,7 @@ services:
 
   redis:
     build: ./redis
-    image: redis
+    image: redis:inception
     container_name: redis
     networks:
       - inception
@@ -68,7 +71,7 @@ services:
       # still run ftp service as root but client should run as www-data / match WP ( Alpine 82 )
       args:
         FTP_USER: ${FTP_USER}
-    image: ftp
+    image: ftp:inception
     container_name: ftp
     ports:
       - "${FTP_BIND_ADDR}:${FTP_PORT}:21"
@@ -88,7 +91,7 @@ services:
 
   adminer:
     build: ./adminer
-    image: adminer
+    image: adminer:inception
     container_name: adminer
     ports:
       - "${ADMINER_BIND_IP}:${ADMINER_PORT}:8080"
