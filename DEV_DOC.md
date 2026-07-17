@@ -1,40 +1,38 @@
 # Inception Developer Documentation
 
-## Architecture
+## 1. Architecture
 
-Mandatory request flow:
+The mandatory request flow is:
 
 ```txt
 Client
   |
-  | HTTPS :443
+  | HTTPS on port 443
   v
 NGINX
   |
-  | FastCGI :9000
+  | FastCGI on port 9000
   v
 WordPress + PHP-FPM
   |
-  | MariaDB protocol :3306
+  | MariaDB protocol on port 3306
   v
 MariaDB
 ```
 
-The containers communicate through the private `inception` Docker network.
+NGINX is the only public entrypoint for the mandatory infrastructure.
 
-Persistent storage is split into two named volumes:
-
-- `wordpress` for WordPress files.
-- `db_data` for MariaDB data.
-
-Their host data paths are:
+The mandatory containers communicate through the private Docker network:
 
 ```txt
-/home/cjuarez/data/wordpress
-/home/cjuarez/data/mariadb
+inception
 ```
 
-## Repository layout
+The current additional services are Redis, FTP, Adminer, and a static website served by NGINX.
+
+Redis currently runs as its own internal container but is not integrated with the WordPress object cache.
+
+## 2. Repository structure
 
 ```txt
 .
@@ -47,19 +45,29 @@ Their host data paths are:
     ├── docker-compose.yml
     ├── secrets/
     ├── nginx/
+    │   ├── Dockerfile
+    │   └── default.conf
     ├── wordpress/
+    │   ├── Dockerfile
+    │   ├── entrypoint.sh
+    │   ├── php.ini
+    │   └── www.conf
     ├── mariadb/
+    │   ├── Dockerfile
+    │   └── entrypoint.sh
     ├── redis/
     ├── ftp/
     ├── adminer/
     └── static/
 ```
 
-Each service has its own Dockerfile and runs in its own container.
+Each actual service is built from its own Dockerfile and runs in its own container.
 
-## Prerequisites
+The static website is content rather than a separate process. It is mounted into the existing NGINX container and served at `/static/`.
 
-Use a Linux VM containing:
+## 3. Prerequisites
+
+Use a Linux virtual machine containing:
 
 ```txt
 Docker Engine
@@ -75,27 +83,40 @@ docker compose version
 make --version
 ```
 
-## Environment setup
+The current user must be able to run Docker commands and create directories under:
 
-### Domain mapping
+```txt
+/home/cjuarez/data
+```
 
-`DOMAIN_NAME` in `srcs/.env` is the single source of truth for the project domain.
+## 4. Configuration
 
-For local testing inside the VM, add:
+### Domain
+
+The implementation is configured for:
+
+```txt
+cjuarez.42.fr
+```
+
+The value is currently present in the WordPress configuration and hardcoded in the NGINX server configuration and self-signed certificate.
+
+Map the domain to the VM through `/etc/hosts`:
 
 ```txt
 127.0.0.1 cjuarez.42.fr
 ```
 
-to `/etc/hosts`.
+Use the VM IP instead of `127.0.0.1` when accessing it from another machine.
 
 ### Environment file
 
-A representative `srcs/.env` is:
+`srcs/.env` contains non-sensitive configuration used by Docker Compose and the entrypoint scripts.
+
+The current implementation expects values corresponding to:
 
 ```env
 LOGIN=cjuarez
-DOMAIN_NAME=cjuarez.42.fr
 
 NGINX_BIND_ADDR=0.0.0.0
 
@@ -103,10 +124,10 @@ MARIADB_DATABASE=wordpress
 MARIADB_USER=wpuser
 
 WORDPRESS_DB_HOST=mariadb
+WORDPRESS_URL=https://cjuarez.42.fr
 WORDPRESS_TITLE=Inception
 WORDPRESS_ADMIN_USER=owner
 WORDPRESS_ADMIN_EMAIL=owner@example.com
-
 WP_USER=editor
 WP_USER_EMAIL=editor@example.com
 WP_USER_ROLE=editor
@@ -120,16 +141,11 @@ ADMINER_BIND_IP=127.0.0.1
 ADMINER_PORT=8081
 ```
 
-Derive the WordPress URL in Compose instead of duplicating the domain:
+The exact usernames and descriptive values may be changed, but the administrator username must not contain `admin` or `administrator`.
 
-```yaml
-environment:
-  WORDPRESS_URL: "https://${DOMAIN_NAME}"
-  `
+### Secrets
 
-### Secret files
-
-Required files under `srcs/secrets/`:
+The current secret files are located under `srcs/secrets/`:
 
 ```txt
 mariadb_password.txt
@@ -139,30 +155,36 @@ wp_user_password.txt
 ftp_password.txt
 ```
 
-Each file contains only the secret value.
+Each file contains only its value.
 
-### Persistent directories
+Docker Compose mounts the granted secrets under:
 
-The Makefile should create these before Compose starts:
-
-```sh
-mkdir -p /home/cjuarez/data/wordpress
-mkdir -p /home/cjuarez/data/mariadb
+```txt
+/run/secrets/<secret_name>
 ```
 
-## Build and launch
+## 5. Makefile behavior
 
-From the repository root:
+The Makefile uses the fixed Compose project name:
+
+```txt
+inception
+```
+
+through:
+
+```makefile
+COMPOSE := docker compose -p $(NAME) -f $(COMPOSE_YML) --env-file $(ENV_FILE)
+```
+
+Using the Makefile consistently prevents the same Compose file from being started under multiple project names.
+
+The primary targets are:
 
 ```sh
 make
-```
-
-Useful targets:
-
-```sh
-make build
 make up
+make build
 make down
 make stop
 make start
@@ -174,228 +196,78 @@ make fclean
 make re
 ```
 
-Validate the resolved Compose configuration:
+Behavior:
 
-```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml config
-```
+- `make` runs `up`.
+- `make up` creates the host data directories and runs `docker compose up -d --build`.
+- `make build` builds the images.
+- `make down` removes the project containers and network.
+- `make stop` stops the containers without removing them.
+- `make start` starts stopped containers.
+- `make restart` restarts the containers.
+- `make clean` runs Compose `down`.
+- `make fclean` removes containers, images, volumes, orphan containers, and the host data directories.
+- `make re` performs the full cleanup and rebuild.
 
-## Image naming and building
+## 6. Docker images
 
-For a service with both `build` and `image`:
+Every service is built from its local Dockerfile.
 
-```yaml
-nginx:
-  build: ./nginx
-    image: nginx:inception
-  pull_policy: build
-```
-
-- `build` defines how Compose builds the image from the local Dockerfile.
-- `image` assigns the resulting local image name and tag.
-- `pull_policy: build` makes the local build behavior explicit.
-
-Use explicit non-`latest` tags while keeping the image repository name equal to the service name:
+The current image naming uses explicit tags:
 
 ```txt
 nginx:inception
 wordpress:inception
 mariadb:inception
+redis:inception
+ftp:inception
+adminer:inception
 ```
 
-## MariaDB readiness
+The repository part of each image name matches its corresponding Compose service.
 
-Startup order alone does not prove that MariaDB has completed initialization. The health check should verify that the configured application user can authenticate and access the configured database.
+All service Dockerfiles use the configured Alpine base image instead of prebuilt WordPress, MariaDB, or NGINX images.
 
-Add to the MariaDB service:
+## 7. Docker network
 
-```yaml
-healthcheck:
-  test:
-      - CMD-SHELL
-        - >-
-            MYSQL_PWD="$$(cat /run/secrets/mariadb_password)"
-            mariadb --protocol=TCP
-            --host=127.0.0.1
-            --port=3306
-            --user="$${MARIADB_USER}"
-            --database="$${MARIADB_DATABASE}"
-            --execute="SELECT 1"
-            >/dev/null 2>&1
-        interval: 3s
-  timeout: 3s
-  retries: 20
-  start_period: 10s
+The Compose file declares the `inception` network.
+
+Docker Compose provides service-name DNS inside the network:
+
+```txt
+nginx -> wordpress:9000
+wordpress -> mariadb:3306
+adminer -> mariadb:3306
 ```
 
-Make WordPress wait for that health check:
+The implementation does not use host networking, `links`, or `--link`.
 
-```yaml
-depends_on:
-  mariadb:
-      condition: service_healthy
-   
+## 8. Persistent volumes
 
-The WordPress entrypoint should also use a bounded authenticated retry before WP-CLI operations. This keeps the script safe when the container is started separately.
+The two mandatory named volumes are:
 
-## Entrypoint error handling
-
-Use:
-
-```sh
-set -eu
+```txt
+wordpress
+db_data
 ```
 
-- `set -e` exits when an unhandled command fails.
-- `set -u` exits when an unset variable is expanded.
+They are mounted as:
 
-Still validate required variables explicitly to produce clear errors:
-
-```sh
-: "${WORDPRESS_DB_HOST:?WORDPRESS_DB_HOST is not set}"
-: "${WORDPRESS_DB_NAME:?WORDPRESS_DB_NAME is not set}"
-: "${WORDPRESS_DB_USER:?WORDPRESS_DB_USER is not set}"
+```txt
+wordpress -> /var/www/html
+db_data   -> /var/lib/mysql
 ```
 
-Validate secret files before reading them:
+The local volume driver stores their data under:
 
-```sh
-[ -r /run/secrets/mariadb_password ] || {
-    echo "Missing MariaDB password secret." >&2
-    exit 1
-}
+```txt
+/home/cjuarez/data/wordpress
+/home/cjuarez/data/mariadb
 ```
 
-A command used inside `if`, `while`, or `until` is intentionally allowed to return nonzero. For example:
+The Makefile creates these host directories before Compose starts.
 
-```sh
-if ! wp core is-installed; then
-    # Install WordPress.
-  fi
-```
-
-Here, a nonzero status means "not installed" and is handled by the `if` statement.
-
-## MariaDB initialization and SQL escaping
-
-Initialization should run only when the MariaDB system database does not exist:
-
-```sh
-if [ ! -d /var/lib/mysql/mysql ]; then
-    # Initialize the data directory and accounts.
-  fi
-```
-
-Restrict SQL identifiers such as the database and application username:
-
-```sh
-validate_identifier() {
-    name="$1"
-    value="$2"
-
-    case "$value" in
-    ""|*[!A-Za-z0-9_]*)
-        echo "$name contains unsupported characters." >&2
-        exit 1
-        ;;
-    esac
-}
-```
-
-Escape SQL string literals by enabling `NO_BACKSLASH_ESCAPES` in the initialization session and doubling single quotes:
-
-```sh
-sql_escape_literal() {
-    printf '%s' "$1" | sed "s/'/''/g"
-}
-```
-
-Example:
-
-```sh
-DB_USER_SQL="$(sql_escape_literal "$MARIADB_USER")"
-DB_PASSWORD_SQL="$(sql_escape_literal "$MARIADB_PASSWORD")"
-ROOT_PASSWORD_SQL="$(sql_escape_literal "$MARIADB_ROOT_PASSWORD")"
-```
-
-Then use:
-
-```sql
-SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES';
-CREATE USER '${DB_USER_SQL}'@'%' IDENTIFIED BY '${DB_PASSWORD_SQL}';
-ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PASSWORD_SQL}';
-```
-
-## NGINX domain templating
-
-Add to `srcs/.env`:
-
-```env
-DOMAIN_NAME=cjuarez.42.fr
-```
-
-Pass it to NGINX in Compose:
-
-```yaml
-environment:
-  DOMAIN_NAME: ${DOMAIN_NAME}
-  ```
-
-  Use a template containing:
-
-  ```nginx
-server_name ${DOMAIN_NAME};
-```
-
-Generate the final NGINX configuration with:
-
-```sh
-envsubst '${DOMAIN_NAME}' \
-  < /etc/nginx/templates/default.conf.template \
-  > /etc/nginx/http.d/default.conf
-```
-
-Limit `envsubst` to `DOMAIN_NAME`. Unrestricted substitution would also replace NGINX variables such as `$uri`, `$args`, and `$document_root`.
-
-Generate the self-signed certificate from the same variable:
-
-```sh
-openssl req -x509 -nodes -days 365 \
-  -newkey rsa:2048 \
-  -keyout /etc/nginx/ssl/inception.key \
-  -out /etc/nginx/ssl/inception.crt \
-  -subj "/CN=${DOMAIN_NAME}" \
-  -addext "subjectAltName=DNS:${DOMAIN_NAME}"
-```
-
-## Container management
-
-Show service state:
-
-```sh
-make ps
-```
-
-Show logs:
-
-```sh
-make logs
-```
-
-Open a shell:
-
-```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml exec wordpress sh
-```
-
-Rebuild one service:
-
-```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml build wordpress
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml up -d wordpress
-```
-
-## Volume inspection and persistence
+Inspect the volumes with:
 
 ```sh
 docker volume ls
@@ -403,90 +275,349 @@ docker volume inspect wordpress
 docker volume inspect db_data
 ```
 
-The inspection output must show the corresponding paths under `/home/cjuarez/data/`.
+The inspection output should contain the corresponding path under `/home/cjuarez/data`.
 
-Persistence test:
+## 9. NGINX implementation
 
-1. Start the stack.
-2. Edit a WordPress page.
-3. Run `make down`.
-4. Reboot the VM.
-5. Run `make up`.
-6. Verify that the page, users, uploads, and database data remain.
+The NGINX image installs:
 
-## Database access
+```txt
+nginx
+openssl
+```
+
+The certificate is generated during the image build and is configured for:
+
+```txt
+cjuarez.42.fr
+```
+
+The NGINX configuration:
+
+- listens on port `443`;
+- enables only TLS 1.2 and TLS 1.3;
+- serves WordPress files from `/var/www/html`;
+- forwards PHP requests to `wordpress:9000`;
+- serves the static website from `/var/www/static`;
+- does not listen on port `80`.
+
+The static route is:
+
+```nginx
+location /static/ {
+    alias /var/www/static/;
+    index index.html;
+    try_files $uri $uri/ /static/index.html;
+}
+```
+
+The static files are mounted through:
+
+```yaml
+- ./static:/var/www/static
+```
+
+## 10. WordPress implementation
+
+The WordPress image installs PHP-FPM, WP-CLI, the MariaDB client, and the required PHP extensions.
+
+PHP-FPM listens on:
+
+```txt
+0.0.0.0:9000
+```
+
+The WordPress entrypoint performs this sequence:
+
+1. Reads the database and WordPress passwords from `/run/secrets`.
+2. Creates the WP-CLI cache directory.
+3. Ensures `/var/www/html` is owned by `www-data`.
+4. Waits for MariaDB port `3306` with a bounded retry loop.
+5. Downloads WordPress when `wp-load.php` is missing.
+6. Creates `wp-config.php` when it is missing.
+7. Installs WordPress when it is not already installed.
+8. Creates the additional regular WordPress user when missing.
+9. Replaces the shell process with PHP-FPM through `exec "$@"`.
+
+The MariaDB wait loop is bounded and exits after the configured number of failed attempts. It is not an infinite-loop container workaround.
+
+The entrypoint uses:
 
 ```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml exec mariadb sh
+set -e
+```
+
+This causes the script to stop when an unhandled command fails.
+
+Commands used as conditions are handled intentionally. For example:
+
+```sh
+if ! wp core is-installed; then
+    # Install WordPress.
+fi
+```
+
+A nonzero result here means WordPress is not installed, so the script enters the installation block.
+
+## 11. MariaDB implementation
+
+The MariaDB image installs:
+
+```txt
+mariadb
+mariadb-client
+su-exec
+```
+
+The entrypoint reads:
+
+```txt
+/run/secrets/mariadb_password
+/run/secrets/mariadb_root_password
+```
+
+It validates the required environment variables and initializes the database only when:
+
+```txt
+/var/lib/mysql/mysql
+```
+
+does not exist.
+
+During first initialization it:
+
+1. Initializes the MariaDB system tables.
+2. Creates the configured WordPress database.
+3. Creates the configured application user for network access.
+4. Grants that user all privileges on the WordPress database.
+5. Sets the MariaDB root password.
+6. Starts `mariadbd` as the `mysql` user.
+
+The main process runs in the foreground as PID 1:
+
+```sh
+exec su-exec mysql mariadbd ...
+```
+
+## 12. MariaDB accounts
+
+The current implementation has two relevant MariaDB accounts.
+
+### WordPress database user
+
+Configured through:
+
+```txt
+MARIADB_USER
+mariadb_password.txt
+```
+
+It is created as:
+
+```sql
+'MARIADB_USER'@'%'
+```
+
+and receives:
+
+```sql
+GRANT ALL PRIVILEGES ON `MARIADB_DATABASE`.* ...
+```
+
+This account is used by:
+
+- WordPress;
+- Adminer;
+- manual checks of the WordPress database.
+
+It can fully manage the WordPress database but does not have unrestricted global MariaDB privileges.
+
+### MariaDB root
+
+Configured through:
+
+```txt
+mariadb_root_password.txt
+```
+
+The root password is assigned to:
+
+```sql
+'root'@'localhost'
+```
+
+This account is intended for local database administration from inside the MariaDB container.
+
+It is not the normal account to demonstrate through Adminer.
+
+## 13. Database access
+
+### Adminer
+
+Use:
+
+```txt
+System: MariaDB or MySQL
+Server: mariadb
+Username: value of MARIADB_USER
+Password: mariadb_password.txt
+Database: value of MARIADB_DATABASE
+```
+
+### MariaDB container
+
+Open a shell:
+
+```sh
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   exec mariadb sh
+```
+
+Application user:
+
+```sh
 mariadb -u "$MARIADB_USER" -p "$MARIADB_DATABASE"
+```
+
+Root:
+
+```sh
+mariadb -u root -p
 ```
 
 Useful checks:
 
 ```sql
 SHOW DATABASES;
+USE wordpress;
 SHOW TABLES;
 SELECT ID, user_login FROM wp_users;
 ```
 
-The table prefix may differ if WordPress uses a custom prefix.
+The table prefix may differ if WordPress uses a non-default prefix.
 
-## Password changes after initialization
+## 14. Persistence test
 
-MariaDB account passwords are stored in the persistent database. Replacing only a secret file does not update an existing account.
+A full persistence test is:
 
-Use one of these approaches:
+1. Run `make`.
+2. Edit a WordPress page from the administration dashboard.
+3. Verify the change on the website.
+4. Run `make down`.
+5. Reboot the virtual machine.
+6. Run `make up`.
+7. Confirm that WordPress remains installed and the page change still exists.
 
-- connect to MariaDB and run `ALTER USER`;
-- remove the development MariaDB data and let initialization run again.
+The data remains because it is stored in the named volumes backed by `/home/cjuarez/data`.
 
-## TLS verification
+## 15. Changing MariaDB passwords
 
-```sh
-curl -kI https://cjuarez.42.fr
-curl -I http://cjuarez.42.fr
-openssl s_client -connect cjuarez.42.fr:443 -tls1_2
-openssl s_client -connect cjuarez.42.fr:443 -tls1_3
+MariaDB account passwords are stored inside the persistent database.
+
+Changing only:
+
+```txt
+mariadb_password.txt
+mariadb_root_password.txt
 ```
 
-NGINX should allow only:
+does not update accounts in an already initialized database.
 
-```nginx
-ssl_protocols TLSv1.2 TLSv1.3;
+During development, either:
+
+- update the account with `ALTER USER`; or
+- run the destructive cleanup and allow MariaDB to initialize again.
+
+## 16. Additional services
+
+### Redis
+
+Redis runs in its own container on the internal Docker network.
+
+The current implementation does not connect WordPress to Redis, so it should only be described as an available Redis service rather than an active WordPress object cache.
+
+### FTP
+
+FTP mounts the same `wordpress` named volume at:
+
+```txt
+/var/www/html
 ```
 
-## Bonus-service notes
+This allows the FTP user to access the persistent WordPress files.
 
-Redis server check:
+### Adminer
 
-```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml exec redis redis-cli ping
+Adminer connects to MariaDB through the Docker network using the service name:
+
+```txt
+mariadb
 ```
 
-A running Redis server alone does not prove that WordPress uses Redis. WordPress integration must also be enabled and tested.
+It is published locally according to:
 
-The static website is mounted into the NGINX container at `/var/www/static`
-and is served at `/static/`. It contains no PHP and does not require a
-separate application process.
+```txt
+ADMINER_BIND_IP
+ADMINER_PORT
+```
 
-## Evaluation rebuild checklist
+### Static website
 
-From a clean development state:
+The static website does not run a separate process.
+
+Its files are mounted into the NGINX container and served through:
+
+```txt
+https://cjuarez.42.fr/static/
+```
+
+## 17. Troubleshooting Compose resource conflicts
+
+The project should be started through the Makefile so Compose always uses:
+
+```txt
+-p inception
+```
+
+Starting the same Compose file separately from `srcs/` can create another project, commonly named `srcs`.
+
+That can leave fixed container names or named volumes in use by the other project.
+
+Find containers using the mandatory volumes:
 
 ```sh
-make fclean
-make
+docker ps -a --filter volume=wordpress
+docker ps -a --filter volume=db_data
+```
+
+Inspect a container's Compose project:
+
+```sh
+docker inspect   -f '{{ index .Config.Labels "com.docker.compose.project" }}'   <container>
+```
+
+Remove only confirmed obsolete containers or the obsolete Compose project before running `make re` again.
+
+## 18. Evaluation checks
+
+Before submission, verify:
+
+```sh
+make re
 make ps
 ```
 
-Verify:
+Then confirm:
 
-- every configured container remains running;
-- MariaDB becomes healthy;
+- all configured containers remain running;
+- HTTPS works on port `443`;
+- HTTP on port `80` is unavailable;
+- TLS 1.2 and TLS 1.3 are enabled;
 - WordPress is already installed;
-- HTTPS works on `443`;
-- HTTP on `80` is unavailable;
 - the administrator username does not contain `admin`;
 - the second WordPress user exists;
-- both mandatory volumes resolve under `/home/cjuarez/data`;
-- data survives `make down`, a VM reboot, and `make up`.
+- WordPress and MariaDB use separate named volumes;
+- both volumes resolve under `/home/cjuarez/data`;
+- the database is non-empty;
+- WordPress data survives a VM reboot;
+- the mandatory services do not use prebuilt service images;
+- no container uses host networking, links, infinite loops, or background-process workarounds.

@@ -1,46 +1,74 @@
 # Inception User Documentation
 
-## Overview
+## 1. Overview
 
-Inception provides a Docker Compose infrastructure containing:
+Inception is a Docker Compose infrastructure running inside a Linux virtual machine.
 
-- **NGINX** as the HTTPS entrypoint on port `443`.
-- **WordPress with PHP-FPM** as the website application.
-- **MariaDB** as the WordPress database.
-- **Redis** as an internal bonus cache service.
-- **FTP** for access to the persistent WordPress files.
-- **Adminer** for browser-based database administration.
-- **A static website** available through its configured route.
+The mandatory services are:
 
-The mandatory services communicate through the private `inception` Docker network. MariaDB, PHP-FPM, and Redis are not directly exposed as public web services.
+- **NGINX** — the only public web entrypoint, available through HTTPS on port `443`.
+- **WordPress with PHP-FPM** — runs the WordPress application without NGINX.
+- **MariaDB** — stores the WordPress database without NGINX.
 
-## Requirements
+The project also contains additional services:
+
+- **Redis** — currently runs as an internal Redis service; WordPress cache integration is not part of the current implementation.
+- **FTP** — provides access to the persistent WordPress files.
+- **Adminer** — provides a browser interface for the WordPress database.
+- **Static website** — served directly by the existing NGINX container under `/static/`.
+
+The containers communicate through the private Docker network named `inception`.
+
+## 2. Requirements
 
 Run the project inside the configured Linux virtual machine with:
 
-- Make
+- Docker
+- Docker Compose
+- GNU Make
 
-The project domain is configured through `LOGIN` in `srcs/.env`.
+The project uses the domain:
 
-For local access inside the VM, add the following entry to `/etc/hosts`:
+```txt
+cjuarez.42.fr
+```
+
+For access inside the VM, add this line to `/etc/hosts`:
 
 ```txt
 127.0.0.1 cjuarez.42.fr
 ```
 
-For access from another machine, replace `127.0.0.1` with the VM IP address.
+For the necessary credentials and env variables an .env file will be copied from outside the VM.
+All passwords are created via the following commands:
 
-## Start the project
+mkdir srcs/secrets
+openssl rand -base64 24 > srcs/secrets/mariadb_password.txt
+openssl rand -base64 24 > srcs/secrets/mariadb_root_password.txt
+openssl rand -base64 24 > srcs/secrets/wordpress_admin_password.txt
+openssl rand -base64 24 > srcs/secrets/wp_user_password.txt
+openssl rand -base64 24 > srcs/secrets/ftp_password.txt
 
-From the repository root:
+
+
+For access from another computer, replace `127.0.0.1` with the VM IP address.
+
+## 3. Starting the project
+
+From the repository root, run:
 
 ```sh
 make
 ```
 
-This creates the required data directories, builds the images, and starts the containers.
+This command:
 
-Useful commands:
+1. Creates the persistent host directories.
+2. Builds the Docker images.
+3. Creates the Docker network and named volumes.
+4. Starts the containers in detached mode.
+
+Other available commands:
 
 ```sh
 make build
@@ -49,81 +77,121 @@ make start
 make restart
 ```
 
-## Stop the project
+## 4. Stopping and cleaning the project
 
-Stop and remove the containers:
+Stop and remove the project containers and network:
 
 ```sh
 make down
 ```
 
-Stop them without removing them:
+Stop the containers without removing them:
 
 ```sh
 make stop
 ```
 
-Other cleanup commands:
+Start previously stopped containers:
+
+```sh
+make start
+```
+
+Remove the project containers and network:
 
 ```sh
 make clean
+```
+
+Perform a destructive cleanup:
+
+```sh
 make fclean
+```
+
+`make fclean` removes the project containers, images, named volumes, orphan containers, and the persistent directories under `/home/cjuarez/data`.
+
+Perform a full clean rebuild:
+
+```sh
 make re
 ```
 
-`make fclean` is destructive when implemented as documented: it removes containers, images, volumes, and local persistent project data.
-
-## Access the services
+## 5. Accessing the services
 
 ### WordPress website
+
+Open:
 
 ```txt
 https://cjuarez.42.fr
 ```
 
-The certificate is self-signed, so the browser may display a warning.
+The TLS certificate is self-signed, so the browser may show a certificate warning.
 
-Plain HTTP should not be available:
+The website must not be available through plain HTTP:
 
 ```txt
 http://cjuarez.42.fr
 ```
 
-### WordPress administration
+### WordPress administration panel
+
+Open:
 
 ```txt
 https://cjuarez.42.fr/wp-admin/
 ```
 
-Use the administrator username configured in `srcs/.env` and its corresponding password from the configured secret file.
+Use the administrator username configured in `srcs/.env` and the password stored in:
+
+```txt
+srcs/secrets/wordpress_admin_password.txt
+```
+
+The project also creates one additional non-administrator WordPress user.
 
 ### Static website
+
+Open:
 
 ```txt
 https://cjuarez.42.fr/static/
 ```
 
+The static files are mounted into the NGINX container from:
+
+```txt
+srcs/static/
+```
+
+and served directly by NGINX.
+
 ### Adminer
 
-With the default local binding:
+With the current local binding, open:
 
 ```txt
 http://127.0.0.1:8081
 ```
 
-Typical login values:
+Use the WordPress database user:
 
 ```txt
 System: MariaDB or MySQL
 Server: mariadb
-Database: value of MARIADB_DATABASE
 Username: value of MARIADB_USER
-Password: MariaDB application-user password
+Password: value stored in mariadb_password.txt
+Database: value of MARIADB_DATABASE
 ```
+
+This user has full privileges on the WordPress database, but not on every MariaDB database.
+
+The MariaDB `root` account is intended for local administration from inside the MariaDB container, not for normal Adminer access.
 
 ### FTP
 
-With the default configuration:
+With the current local configuration:
 
 ```txt
 Host: 127.0.0.1
@@ -131,9 +199,13 @@ Port: 21
 Passive ports: 21100-21110
 ```
 
-The FTP root points to the shared WordPress files at `/var/www/html`.
+The FTP service uses the persistent WordPress volume mounted at:
 
-## Configuration and credentials
+```txt
+/var/www/html
+```
+
+## 6. Configuration and credentials
 
 Non-sensitive configuration is stored in:
 
@@ -141,40 +213,63 @@ Non-sensitive configuration is stored in:
 srcs/.env
 ```
 
-Credential values are stored in separate files under:
+Passwords are stored as individual files under:
 
 ```txt
 srcs/secrets/
 ```
 
-Each secret file contains only the value itself, without a `KEY=` prefix. Inside a container, granted secrets are available under:
+The current secret files are:
 
 ```txt
-/run/secrets/<secret_name>
+mariadb_password.txt
+mariadb_root_password.txt
+wordpress_admin_password.txt
+wp_user_password.txt
+ftp_password.txt
 ```
 
-Changing a MariaDB password secret does not automatically update an account already stored in the persistent database. The account must be changed inside MariaDB or the development database must be reinitialized.
+Each file contains only the secret value.
 
-## Check that the services are running
+Inside the relevant containers, Docker Compose mounts the files under:
+
+```txt
+/run/secrets/
+```
+
+The two MariaDB passwords serve different accounts:
+
+- `mariadb_password.txt` — password for the restricted MariaDB user used by WordPress and Adminer.
+- `mariadb_root_password.txt` — password for the MariaDB root administrator inside the MariaDB container.
+
+## 7. Checking the services
+
+Show the current project containers:
 
 ```sh
 make ps
+```
+
+Follow all project logs:
+
+```sh
 make logs
 ```
 
-Direct Compose commands:
+Check the containers directly:
 
 ```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml ps
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs -f
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   ps
 ```
 
-Check individual logs:
+Check specific logs:
 
 ```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs mariadb
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs wordpress
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs nginx
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   logs mariadb
+
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   logs wordpress
+
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   logs nginx
 ```
 
 Check HTTPS:
@@ -183,127 +278,114 @@ Check HTTPS:
 curl -kI https://cjuarez.42.fr
 ```
 
-Port `80` should not serve the website:
+Check that HTTP is unavailable:
 
 ```sh
 curl -I http://cjuarez.42.fr
 ```
 
-Check Redis itself:
+## 8. Checking MariaDB
 
-```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml exec redis redis-cli ping
-```
+### Through Adminer
 
-Expected result:
+Log in with the WordPress database user and verify that the configured database contains WordPress tables such as:
 
 ```txt
-PONG
+wp_posts
+wp_users
+wp_options
 ```
 
-Check MariaDB interactively:
+The exact prefix may differ if WordPress uses a custom table prefix.
+
+### From inside the MariaDB container
+
+Open a shell:
 
 ```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml exec mariadb sh
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   exec mariadb sh
+```
+
+Connect as the WordPress database user:
+
+```sh
 mariadb -u "$MARIADB_USER" -p "$MARIADB_DATABASE"
 ```
 
-## Persistent data
+Connect as MariaDB root:
 
-WordPress files are stored under:
+```sh
+mariadb -u root -p
+```
+
+## 9. Persistent data
+
+WordPress files are stored on the host under:
 
 ```txt
 /home/cjuarez/data/wordpress
 ```
 
-MariaDB data is stored under:
+MariaDB files are stored on the host under:
 
 ```txt
 /home/cjuarez/data/mariadb
 ```
 
-The data survives container removal, rebuilding, and VM restarts unless a destructive cleanup removes the volumes and host data directories.
+The Docker named volumes are:
 
-## Troubleshooting
+```txt
+wordpress
+db_data
+```
+
+The data survives normal container removal, image rebuilding, and VM restarts.
+
+The data is intentionally removed by:
+
+```sh
+make fclean
+```
+
+## 10. Troubleshooting
 
 ### The domain does not open
 
-Check `/etc/hosts` and ensure that `cjuarez.42.fr` points to the VM.
+Check that `/etc/hosts` maps `cjuarez.42.fr` to the VM.
 
 ### The browser reports an unsafe certificate
 
-That is expected for the self-signed certificate.
+This is expected because the certificate is self-signed.
 
-### WordPress reports a database error
+### WordPress reports a database connection error
 
 Check:
 
 ```sh
 make ps
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs mariadb
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs wordpress
+docker compose -p inception -f srcs/docker-compose.yml --env-file srcs/.env logs mariadb
+docker compose -p inception -f srcs/docker-compose.yml --env-file srcs/.env logs wordpress
 ```
 
 ### A container keeps restarting
 
+Inspect its recent logs:
+
 ```sh
-docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs --tail=100 <service>
+docker compose -p inception   -f srcs/docker-compose.yml   --env-file srcs/.env   logs --tail=100 <service>
 ```
 
-Replace `<service>` with the relevant service name.
+### A container name or volume is already in use
+
+The Makefile manages the Compose project under the name `inception`.
+
+Do not start the same Compose file separately under another project name. Old containers from another project can keep fixed container names or volumes in use.
+
+Find containers using a volume:
+
+```sh
+docker ps -a --filter volume=wordpress
+docker ps -a --filter volume=db_data
 ```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
-```
+
+Remove only confirmed obsolete containers before retrying the build.
